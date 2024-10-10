@@ -278,8 +278,7 @@ def main():
         else:
             model.plot(args['output_name'], args['num_samples'], save_latents=save_latents)
     # save the latents
-    # exit()
-    files_utils.save_to_hdf5(f'{path_save}/spaghrtt_latents_chair_large.hdf5', save_latents)
+    # files_utils.save_to_hdf5(f'{path_save}/latents_chair_large.hdf5', save_latents)
     
     return 0
 
@@ -291,7 +290,7 @@ if __name__ == '__main__':
     # python shape_inversion.py --model_name  chairs_large  --mesh_path ./assets/mesh/example.obj
     # python shape_inversion.py --model_name  chairs_large  --source random --mesh_path --num_samples 1
 
-    
+    # 
     # python shape_inversion.py --model_name  chairs_large  --source training --output_name lei_train 
     # python shape_inversion.py --model_name  chairs_large  --source training --output_name lei_train --num_samples 10000000
 

@@ -62,7 +62,7 @@ class Options:
         self.num_heads_head = 8
         self.head_occ_size = 5
         self.head_occ_type = 'skip'
-        self.batch_size = 18
+        self.batch_size = 1 #18
         self.num_samples = 2000
         self.dataset_size = -1
         self.symmetric = (True, False, False)

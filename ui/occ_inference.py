@@ -6,7 +6,6 @@ from models import models_utils
 
 
 class Inference:
-
     def get_occ_fun(self, z: T):
 
         def forward(x: T) -> T:
@@ -28,8 +27,10 @@ class Inference:
     def plot_occ(self, z: Union[T, TS], z_base, gmms: Optional[TS], fixed_items: T,
                  folder_name: str, res=200, verbose=False):
         for i in range(len(z)):
-            mesh = self.get_mesh(z[i], res)
+            mesh = self.get_mesh(z[i], res) # use the Z^b to get the mesh, i am finding the extrinsic and intrinsic of the Z^b-------->
             name = f'{fixed_items[i]:04d}'
+            print("name of the mesh in training data:", name)
+            # exit()
             if mesh is not None:
                 files_utils.export_mesh(mesh, f'{self.opt.cp_folder}/{folder_name}/occ/{name}')
                 files_utils.save_pickle(z_base[i].detach().cpu(), f'{self.opt.cp_folder}/{folder_name}/occ/{name}')
@@ -171,14 +172,31 @@ class Inference:
         self.plot_occ(zh, zh_base, gmms, numbers, folder_name, verbose=verbose, res=res)
 
     @models_utils.torch_no_grad
-    def plot(self, folder_name: str, nums_sample: int, verbose=False, res: int = 200):
+    def plot(self, folder_name: str, nums_sample: int, verbose=False, res: int = 200, save_latents=None):
+
+        print("see self.model.opt.dataset_size:",self.model.opt.dataset_size)# 6755        
         if self.model.opt.dataset_size < nums_sample:
             fixed_items = torch.arange(self.model.opt.dataset_size)
         else:
             fixed_items = torch.randint(low=0, high=self.opt.dataset_size, size=(nums_sample,))
+            print("see fixed_items:",fixed_items)
+            # exit()
         zh_base, _, gmms = self.model.get_embeddings(fixed_items.to(self.device))
-        zh, attn_b = self.model.merge_zh(zh_base, gmms)
-        self.plot_occ(zh, zh_base, gmms, fixed_items, folder_name, verbose=verbose, res=res)
+        print("check the  zh_base in plot  fuc:", zh_base.shape)# torch.Size([2, 16, 512]), batch size is 2
+        save_gmm= torch.cat([gmms[0], gmms[1].view(gmms[1].shape[0], 1, 16, 9), gmms[2].unsqueeze(-1), gmms[3]], dim=-1).squeeze(1)
+        print("see save_gmm shape:", save_gmm.shape)# torch.Size([2, 16, 16])
+        # for each in gmms:
+        #     print("see each:",each.shape)# torch.Size([1, 16, 512])
+        save_latents['s_j_affine'] = zh_base.detach().cpu().numpy()
+        save_latents['g_js_affine'] = save_gmm.detach().cpu().numpy()
+        # exit()
+        # save zh_base and gmms as s_j_affine, g_js_affine respectively usingn HDF5 file
+        # files_utils.save_pickle(zh_base.detach().cpu(), f'{self.opt.cp_folder}/{folder_name}/occ/s_j_affine')
+        # save the latents
+        
+        # >>>>>><<<<<<<<::this merge_zh fucntion is the interface for the sampled extrinsic and intrinsic from diffusion model    
+        # zh, attn_b = self.model.merge_zh(zh_base, gmms)# zh shape: torch.Size([2, 16, 512])
+        # self.plot_occ(zh, zh_base, gmms, fixed_items, folder_name, verbose=verbose, res=res)
 
     def get_mesh_from_mid(self, gmm, included: T, res: int) -> Optional[T_Mesh]:
         if self.mid is None:

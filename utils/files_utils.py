@@ -7,7 +7,7 @@ from PIL import Image
 import time
 import json
 import matplotlib.pyplot as plt
-
+import h5py
 
 def image_to_display(img) -> ARRAY:
     if type(img) is str:
@@ -262,6 +262,26 @@ def colors_to_colors(colors: COLORS, mesh: T_Mesh) -> T:
     if colors.dim() == 1:
         colors = colors.unsqueeze(int(colors.shape[0] != 3)).expand_as(mesh[0])
     return colors
+
+def save_to_hdf5(path, data_dict):
+    """
+    Save data to an HDF5 file.
+
+    Parameters:
+    path (str): The path to the HDF5 file.
+    data_dict (dict): A dictionary where keys are dataset names and values are the data (numpy arrays, lists, etc.) to be saved.
+    """
+    print(f"Saving data to {path}")
+    with h5py.File(path, 'w') as hdf5_file:
+        for dataset_name, dataset_data in data_dict.items():
+            # Create a dataset for each entry in the data_dict
+            hdf5_file.create_dataset(dataset_name, data=dataset_data)
+
+            # Optionally, add a description attribute if needed
+            hdf5_file[dataset_name].attrs['description'] = f'Dataset for {dataset_name}'
+
+    hdf5_file.close()
+    print(f"Data saved to {path}")
 
 
 def load_mesh(file_name: str, dtype: Union[type(T), type(V)] = T,

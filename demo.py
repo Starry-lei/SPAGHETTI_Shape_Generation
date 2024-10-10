@@ -708,5 +708,6 @@ def main():
 
 
 if __name__ == '__main__':
+    # python demo.py --model_name chairs_large --shape_dir samples
     torch.multiprocessing.set_start_method("spawn")
     main()

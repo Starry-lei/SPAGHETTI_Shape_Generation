@@ -29,10 +29,22 @@ def get_p_direct(splitted: TS) -> T:
 
 def split_gm(splitted: TS) -> TS:
     p = get_p_direct(splitted)
+    
     # eigenvalues
     eigen = splitted[-3] ** 2 + constants.EPSILON
     mu = splitted[-2]
     phi = splitted[-1].squeeze(3)
+
+    print("show eigen:", eigen.shape)# ?
+    print("show mu:", mu.shape)#?
+    print("show phi:", phi.shape)#?
+    print("show p:", p.shape)#?
+
+    # show eigen: torch.Size([2, 1, 16, 3])
+    # show mu: torch.Size([2, 1, 16, 3])
+    # show phi: torch.Size([2, 1, 16])
+    # show p: torch.Size([2, 1, 16, 3, 3])
+
     return mu, p, phi, eigen
 
 
@@ -134,11 +146,26 @@ class DecompositionControl(models_utils.Model):
         return x
 
     def forward_split(self, x: T) -> Tuple[T, TS]:
+        print("enter the function of forward_split=====================================")# torch.Size([1, 16, 512])
+        print("show x shape:", x.shape)# show x shape: torch.Size([10, 16, 512])
         b = x.shape[0]
         raw_gmm = self.to_gmm(x).unsqueeze(1)
-        gmms = split_gm(torch.split(raw_gmm, self.split_shape, dim=3))
+        print("show raw_gmm shape:", raw_gmm.shape)# torch.Size([10, 1, 16, 16]) : extrinsic, g_j
+        gmms = split_gm(torch.split(raw_gmm, self.split_shape, dim=3))# show split_shape: (3, 3, 3, 3, 3, 1), sum is 16
+
+        # for each in gmms:
+        #     print("show each shape:", each.shape)# torch.Size([10, 1, 16, 3])
+        #     # show each shape: torch.Size([2, 1, 16, 3])
+        #     # show each shape: torch.Size([2, 1, 16, 3, 3])
+        #     # show each shape: torch.Size([2, 1, 16])
+        #     # show each shape: torch.Size([2, 1, 16, 3])
+        # exit()        
         zh = self.to_s(x)
+        print("show zh= self.to_s(x) shape:", zh.shape)# torch.Size([10, 16, 512]): intrinsic, s_j
         zh = zh.view(b, -1, zh.shape[-1])
+        print("-->again show zh= self.to_s(x) shape:", zh.shape)# torch.Size([2, 16, 512])
+        print("end the function of forward_split=====================================")# torch.Size([1, 16, 512])
+        # exit()
         return zh, gmms
 
     @staticmethod
@@ -160,9 +187,20 @@ class DecompositionControl(models_utils.Model):
 
     def forward_mid(self, zs) -> Tuple[T, TS]:
         zh, gmms = self.forward_split(zs)
+        print("enter the  function of forward_mid =====================================")
+        print("show zh shape:", zh.shape) # [2, 16, 512])
+        # print("show gmms shape:", gmms[0].shape)# torch.Size([2, 1, 16, 3])
         if self.reflect is not None:
             gmms_r = self.apply_gmm_affine(gmms, self.reflect)
+            print("self.reflect show gmms_r shape:", gmms_r[0].shape) #([2, 1, 16, 3])
             gmms = self.concat_gmm(gmms, gmms_r)
+            print("len of gmms shape:", len(gmms))# 4
+            # print("show gmms shape:", gmms[0].shape)# torch.Size([2, 1, 16, 3])            
+        print("show zh shape:", zh.shape) # torch.Size([2, 16, 512])
+        print("show len of gmms shape:", len(gmms))# f gmms shape: 4 
+        # print("show gmms shape:", gmms[0].shape)#torch.Size([2, 1, 16, 3])
+        print("end the function of forward_mid    ================important00==========")
+        # save the intrinsic and extrinsic representation here
         return zh, gmms
 
     def forward_low(self, z_init):
@@ -190,6 +228,7 @@ class DecompositionControl(models_utils.Model):
         else:
             self.reflect = None
         self.split_shape = tuple((constants.DIM + 2) * [constants.DIM] + [1])
+        print("!!!!!!!~~~~~~~~~~~show split_shape:", self.split_shape) #show split_shape: (3, 3, 3, 3, 3, 1), sum is 16
         self.decomposition = DecompositionNetwork(opt)
         self.to_gmm = nn.Linear(opt.dim_h, sum(self.split_shape))
         self.to_s = nn.Linear(opt.dim_h, opt.dim_h)
@@ -222,15 +261,22 @@ class Spaghetti(models_utils.Model):
         zh, gmms = self.decomposition_control(z_between)
         return zh, gmms
 
-    def get_disentanglement(self, items: T):
+    def get_disentanglement(self, items: T): # the function get_disentanglement
         z_a = self.get_z(items)
         z_b = self.decomposition_control.forward_bottom(z_a)
         zh, gmms = self.decomposition_control.forward_split(self.decomposition_control.forward_upper(z_b))
         return z_a, z_b, zh, gmms
 
     def get_embeddings(self, item: T):
+
+        print("enter the function get_embeddings-------------------------------->>>>>>>>>>>>>>")
         z = self.get_z(item)
-        zh, gmms = self.decomposition_control(z)
+        print("show z shape:", z.shape)# torch.Size([1, 16, 512])# torch.Size([10, 256]) # Z^a
+        zh, gmms = self.decomposition_control(z) #  torch.Size([10, 16, 512]): Z^b
+        print("show zh shape:", zh.shape)# torch.Size([1, 16, 512])
+        print("show len of gmms shape:", len(gmms))# f gmms shape: 4
+        print("end of  the function get_embeddings------------------------------->>>>>>>>>>>>>>")
+
         return zh, z, gmms
 
     def merge_zh_step_a(self, zh, gmms):
@@ -252,7 +298,9 @@ class Spaghetti(models_utils.Model):
         return self.occupancy_network(x, zh, mask)
 
     def forward_a(self, item: T):
+        print("enter the function of forward_a-------------------------------->>>>>>>>>>>>>>")
         zh, z, gmms = self.get_embeddings(item)
+        print("end of the function of forward_a-------------------------------->>>>>>>>>>>>>>")
         return zh, z, gmms
 
     def get_attention(self, x, item) -> TS:
@@ -287,6 +335,8 @@ class Spaghetti(models_utils.Model):
         super(Spaghetti, self).__init__()
         self.device = opt.device
         self.opt = opt
+        print("show the content of opt:", opt)
+        # exit()
         self.z = nn.Embedding(opt.dataset_size, opt.dim_z)
         torch.nn.init.normal_(
             self.z.weight.data,
